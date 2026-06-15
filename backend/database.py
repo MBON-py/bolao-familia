@@ -66,7 +66,7 @@ def calc_points(pred_a, pred_b, real_a, real_b):
         return 3
     p = (1 if pred_a > pred_b else (-1 if pred_a < pred_b else 0))
     r = (1 if real_a > real_b else (-1 if real_a < real_b else 0))
-    return 1 if p == r else 0
+    return 1 if p == r and r != 0 else 0
 
 
 def short_name(full_name: str) -> str:

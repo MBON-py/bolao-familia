@@ -98,7 +98,7 @@ export default function HomePage() {
         <thead><tr><th>Regra</th><th>Detalhe</th></tr></thead>
         <tbody>
           <tr><td><strong>Placar exato</strong></td><td><strong>3 pontos</strong> — acertou o placar certinho!</td></tr>
-          <tr><td><strong>Acertou o vencedor</strong></td><td><strong>1 ponto</strong> — acertou quem ganha (ou empate)</td></tr>
+          <tr><td><strong>Acertou o vencedor</strong></td><td><strong>1 ponto</strong> — acertou quem ganha a partida (empate nao conta)</td></tr>
           <tr><td><strong>Errou tudo</strong></td><td><strong>0 pontos</strong> — na proxima vai!</td></tr>
           <tr><td><strong>Prazo</strong></td><td>Palpites devem ser feitos <strong>antes do jogo comecar</strong></td></tr>
           <tr><td><strong>Travamento</strong></td><td>Depois que o jogo comeca, nao pode mais alterar</td></tr>
