@@ -15,6 +15,8 @@ export default function AdminPage() {
     team_a: '', team_b: '', flag_a: '', flag_b: '',
     match_date: '', phase: 'Fase de Grupos', group_name: '', venue: '',
   });
+  const [retroUserId, setRetroUserId] = useState('');
+  const [retroInputs, setRetroInputs] = useState({});
 
   const load = () => {
     api.getMatches().then(setMatches);
@@ -79,6 +81,42 @@ export default function AdminPage() {
 
   const medals = ['🥇', '🥈', '🥉'];
 
+  const finished = matches.filter(m => m.status === 'finished');
+
+  const loadRetroUser = async (userId) => {
+    setRetroUserId(userId);
+    if (!userId) { setRetroInputs({}); return; }
+    const preds = await api.getUserPredictions(Number(userId));
+    const byMatch = {};
+    preds.forEach(p => { byMatch[p.match_id] = { a: p.score_a, b: p.score_b }; });
+    const inputs = {};
+    finished.forEach(m => {
+      inputs[m.id] = byMatch[m.id] ?? { a: '', b: '' };
+    });
+    setRetroInputs(inputs);
+  };
+
+  const setRetroScore = (matchId, side, val) => {
+    setRetroInputs(prev => ({
+      ...prev,
+      [matchId]: { ...prev[matchId], [side]: Math.max(0, Number(val) || 0) },
+    }));
+  };
+
+  const saveRetroPred = async (matchId) => {
+    const inp = retroInputs[matchId];
+    if (inp.a === '' || inp.b === '') return toast.error('Preencha o placar!');
+    try {
+      await api.adminSavePrediction({
+        user_id: Number(retroUserId),
+        match_id: matchId,
+        score_a: Number(inp.a),
+        score_b: Number(inp.b),
+      });
+      toast.success('Palpite salvo!');
+    } catch (err) { toast.error(err.message); }
+  };
+
   return (
     <>
       <h1 className="section-title" style={{ marginTop: 0 }}>Administracao do Bolao</h1>
@@ -89,6 +127,7 @@ export default function AdminPage() {
           ['edit', 'Editar Jogos'],
           ['add', 'Novo Jogo'],
           ['manage', 'Gerenciar'],
+          ['palpites', 'Palpites'],
           ['users', 'Participantes'],
           ['ranking', 'Ranking'],
         ].map(([key, label]) => (
@@ -280,6 +319,68 @@ export default function AdminPage() {
               <button className="btn btn-danger btn-sm" onClick={() => startMatch(m)}>Iniciar</button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Palpites retroativos */}
+      {tab === 'palpites' && (
+        <div>
+          <h2 className="section-title">Cadastrar Palpites Anteriores</h2>
+          <p style={{ color: 'var(--text-light)', marginBottom: '1rem' }}>
+            Registre palpites de participantes para jogos ja finalizados.
+          </p>
+          <div className="card" style={{ marginBottom: '1rem', padding: '1rem' }}>
+            <label style={{ fontWeight: 600, display: 'block', marginBottom: '.5rem' }}>Participante</label>
+            <select
+              className="form-control"
+              value={retroUserId}
+              onChange={e => loadRetroUser(e.target.value)}
+            >
+              <option value="">Selecione um participante...</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {retroUserId && finished.length === 0 && (
+            <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
+              <p>Nenhum jogo finalizado ainda.</p>
+            </div>
+          )}
+
+          {retroUserId && finished.map(m => {
+            const inp = retroInputs[m.id] ?? { a: '', b: '' };
+            const hasExisting = inp.a !== '' && inp.b !== '';
+            return (
+              <div className="match-card" key={m.id}>
+                <div className="match-meta">
+                  <span className="badge badge-finished">Finalizado</span>
+                  <span className="match-venue">{m.match_date.slice(0, 10)} · {m.group_name}</span>
+                </div>
+                <div className="match-teams" style={{ marginBottom: '.5rem' }}>
+                  <span className="match-team">{m.flag_a && <span className="match-flag">{m.flag_a}</span>} {m.team_a}</span>
+                  <span className="match-vs">{m.score_a} x {m.score_b}</span>
+                  <span className="match-team">{m.team_b} {m.flag_b && <span className="match-flag">{m.flag_b}</span>}</span>
+                </div>
+                <div className="pred-row">
+                  <span style={{ fontSize: '.85rem', color: 'var(--text-light)' }}>Palpite:</span>
+                  <input type="number" className="form-control input-score" min="0" max="20"
+                    placeholder="0"
+                    value={inp.a}
+                    onChange={e => setRetroScore(m.id, 'a', e.target.value)} />
+                  <span style={{ fontWeight: 800, color: 'var(--text-light)' }}>x</span>
+                  <input type="number" className="form-control input-score" min="0" max="20"
+                    placeholder="0"
+                    value={inp.b}
+                    onChange={e => setRetroScore(m.id, 'b', e.target.value)} />
+                  <button className="btn btn-primary btn-sm" onClick={() => saveRetroPred(m.id)}>
+                    {hasExisting ? 'Atualizar' : 'Salvar'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

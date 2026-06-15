@@ -30,4 +30,5 @@ export const api = {
   toggleAdmin: (userId, isAdmin) =>
     request(`/users/${userId}/admin`, { method: 'PUT', body: JSON.stringify({ is_admin: isAdmin }) }),
   getStandings: () => request('/standings'),
+  adminSavePrediction: (data) => request('/admin/predictions', { method: 'POST', body: JSON.stringify(data) }),
 };

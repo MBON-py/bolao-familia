@@ -202,6 +202,27 @@ def save_prediction(data: PredictionCreate):
         conn.close()
 
 
+@app.post("/api/admin/predictions")
+def admin_save_prediction(data: PredictionCreate):
+    conn = get_conn()
+    match = conn.execute("SELECT status FROM matches WHERE id=%s", (data.match_id,)).fetchone()
+    if not match or match["status"] != "finished":
+        conn.close()
+        raise HTTPException(400, "Jogo nao finalizado")
+    try:
+        conn.execute(
+            """INSERT INTO predictions (user_id, match_id, score_a, score_b)
+               VALUES (%s,%s,%s,%s)
+               ON CONFLICT (user_id, match_id)
+               DO UPDATE SET score_a=EXCLUDED.score_a, score_b=EXCLUDED.score_b, created_at=now()""",
+            (data.user_id, data.match_id, data.score_a, data.score_b),
+        )
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
 @app.get("/api/predictions/user/{user_id}")
 def user_predictions(user_id: int):
     conn = get_conn()
