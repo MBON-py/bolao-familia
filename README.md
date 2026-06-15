@@ -68,8 +68,13 @@ O repositório já inclui um `render.yaml` (Blueprint) que cria dois serviços:
 3. Antes de aplicar, configure as variáveis marcadas como "sync: false":
    - `DATABASE_URL` no serviço **bolao-familia-backend**: cole a connection string do Supabase (Transaction pooler, porta `6543`).
    - `VITE_API_URL` no serviço **bolao-familia-frontend**: deixe em branco por enquanto.
-4. Faça o deploy. Quando o backend terminar, anote a URL gerada (ex: `https://bolao-familia-backend.onrender.com`).
-5. Edite a variável `VITE_API_URL` do frontend para `https://<url-do-backend>.onrender.com/api` e dispare um novo deploy (manual deploy) do frontend — variáveis do Vite só têm efeito no build.
-6. Acesse a URL do frontend (`https://bolao-familia-frontend.onrender.com`).
+4. Faça o deploy. Quando o backend terminar, anote a URL gerada (o Render pode adicionar um sufixo aleatório ao nome, ex: `https://bolao-familia-backend-yaun.onrender.com`).
+5. Edite a variável `VITE_API_URL` do frontend para `<url-do-backend>/api` e dispare um novo deploy (manual deploy) do frontend — variáveis do Vite só têm efeito no build.
+6. Acesse a URL do frontend gerada pelo Render.
 
 Na primeira execução do backend, as tabelas são criadas e os 104 jogos + usuário admin são inseridos automaticamente (seed).
+
+### URLs do deploy atual
+
+- Backend: `https://bolao-familia-backend-yaun.onrender.com`
+- `VITE_API_URL` configurado: `https://bolao-familia-backend-yaun.onrender.com/api`
