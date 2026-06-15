@@ -17,20 +17,38 @@ Plataforma de bolao familiar para a Copa do Mundo 2026. Cadastre participantes, 
 
 - **Frontend:** React 19 + Vite
 - **Backend:** Python + FastAPI
-- **Banco:** SQLite
+- **Banco:** PostgreSQL (Supabase)
 
 ## Como rodar
 
+### 1. Banco de dados (Supabase)
+
+1. Crie um projeto em [supabase.com](https://supabase.com) (ou use um existente).
+2. Em **Project Settings > Database > Connection string**, copie a string da aba **Transaction pooler** (porta `6543`).
+3. Em `backend/`, copie `.env.example` para `.env` e cole a connection string em `DATABASE_URL`, substituindo `[YOUR-PASSWORD]` pela senha do banco.
+
+### 2. Backend
+
 ```bash
-# Backend
 cd backend
 pip install -r requirements.txt
 python -m uvicorn main:app --port 8000 --reload
+```
 
-# Frontend
+Na primeira execução, as tabelas são criadas e os 104 jogos + usuário admin são inseridos automaticamente (seed).
+
+### 3. Frontend
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
 Acesse http://localhost:5173
+
+## Variáveis de ambiente
+
+| Variável | Onde | Descrição |
+| --- | --- | --- |
+| `DATABASE_URL` | `backend/.env` | Connection string do Postgres do Supabase (não commitar) |

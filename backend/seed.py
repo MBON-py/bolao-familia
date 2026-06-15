@@ -169,18 +169,15 @@ def seed():
         fa = FLAGS.get(ta, "")
         fb = FLAGS.get(tb, "")
         conn.execute(
-            "INSERT INTO matches (team_a,team_b,flag_a,flag_b,match_date,phase,group_name,venue) VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT INTO matches (team_a,team_b,flag_a,flag_b,match_date,phase,group_name,venue) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
             (ta, tb, fa, fb, dt, phase, grp, venue),
         )
 
     for name, email, phone, is_admin in ADMIN_USERS:
-        try:
-            conn.execute(
-                "INSERT INTO users (name, email, phone, is_admin) VALUES (?, ?, ?, ?)",
-                (name, email.lower(), phone, is_admin),
-            )
-        except Exception:
-            pass
+        conn.execute(
+            "INSERT INTO users (name, email, phone, is_admin) VALUES (%s, %s, %s, %s) ON CONFLICT (email) DO NOTHING",
+            (name, email.lower(), phone, is_admin),
+        )
 
     conn.commit()
     conn.close()

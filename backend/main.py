@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from database import get_conn, init_db, calc_points, short_name
 from seed import seed
-import sqlite3
+import psycopg2
 
 seed()
 
@@ -70,15 +70,15 @@ def register(data: UserCreate):
     conn = get_conn()
     try:
         cur = conn.execute(
-            "INSERT INTO users (name, email, phone) VALUES (?, ?, ?)",
+            "INSERT INTO users (name, email, phone) VALUES (%s, %s, %s) RETURNING *",
             (data.name.strip(), data.email.lower().strip(), data.phone.strip()),
         )
+        user = cur.fetchone()
         conn.commit()
-        uid = cur.lastrowid
-        user = dict(conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone())
         user["short_name"] = short_name(user["name"])
         return user
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
+        conn.rollback()
         raise HTTPException(400, "E-mail ja cadastrado")
     finally:
         conn.close()
@@ -87,7 +87,7 @@ def register(data: UserCreate):
 @app.post("/api/users/login")
 def login(data: UserLogin):
     conn = get_conn()
-    row = conn.execute("SELECT * FROM users WHERE email=?", (data.email.lower().strip(),)).fetchone()
+    row = conn.execute("SELECT * FROM users WHERE email=%s", (data.email.lower().strip(),)).fetchone()
     conn.close()
     if not row:
         raise HTTPException(404, "E-mail nao encontrado")
@@ -107,11 +107,11 @@ def list_users():
 @app.put("/api/users/{user_id}/admin")
 def toggle_admin(user_id: int, data: UserAdminUpdate):
     conn = get_conn()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE id=%s", (user_id,)).fetchone()
     if not user:
         conn.close()
         raise HTTPException(404, "Usuario nao encontrado")
-    conn.execute("UPDATE users SET is_admin=? WHERE id=?", (data.is_admin, user_id))
+    conn.execute("UPDATE users SET is_admin=%s WHERE id=%s", (data.is_admin, user_id))
     conn.commit()
     conn.close()
     return {"ok": True}
@@ -131,12 +131,12 @@ def list_matches():
 def add_match(data: MatchCreate):
     conn = get_conn()
     cur = conn.execute(
-        "INSERT INTO matches (team_a,team_b,flag_a,flag_b,match_date,phase,group_name,venue) VALUES (?,?,?,?,?,?,?,?)",
+        """INSERT INTO matches (team_a,team_b,flag_a,flag_b,match_date,phase,group_name,venue)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *""",
         (data.team_a, data.team_b, data.flag_a, data.flag_b, data.match_date, data.phase, data.group_name, data.venue),
     )
+    row = cur.fetchone()
     conn.commit()
-    mid = cur.lastrowid
-    row = dict(conn.execute("SELECT * FROM matches WHERE id=?", (mid,)).fetchone())
     conn.close()
     return row
 
@@ -144,16 +144,16 @@ def add_match(data: MatchCreate):
 @app.put("/api/matches/{match_id}")
 def update_match(match_id: int, data: MatchUpdate):
     conn = get_conn()
-    match = conn.execute("SELECT * FROM matches WHERE id=?", (match_id,)).fetchone()
+    match = conn.execute("SELECT * FROM matches WHERE id=%s", (match_id,)).fetchone()
     if not match:
         conn.close()
         raise HTTPException(404, "Jogo nao encontrado")
     fields = {k: v for k, v in data.model_dump().items() if v is not None}
     if fields:
-        set_clause = ", ".join(f"{k}=?" for k in fields)
-        conn.execute(f"UPDATE matches SET {set_clause} WHERE id=?", (*fields.values(), match_id))
+        set_clause = ", ".join(f"{k}=%s" for k in fields)
+        conn.execute(f"UPDATE matches SET {set_clause} WHERE id=%s", (*fields.values(), match_id))
         conn.commit()
-    row = dict(conn.execute("SELECT * FROM matches WHERE id=?", (match_id,)).fetchone())
+    row = dict(conn.execute("SELECT * FROM matches WHERE id=%s", (match_id,)).fetchone())
     conn.close()
     return row
 
@@ -162,7 +162,7 @@ def update_match(match_id: int, data: MatchUpdate):
 def set_result(match_id: int, data: MatchResultUpdate):
     conn = get_conn()
     conn.execute(
-        "UPDATE matches SET score_a=?, score_b=?, status='finished' WHERE id=?",
+        "UPDATE matches SET score_a=%s, score_b=%s, status='finished' WHERE id=%s",
         (data.score_a, data.score_b, match_id),
     )
     conn.commit()
@@ -173,7 +173,7 @@ def set_result(match_id: int, data: MatchResultUpdate):
 @app.put("/api/matches/{match_id}/status")
 def set_status(match_id: int, data: MatchStatusUpdate):
     conn = get_conn()
-    conn.execute("UPDATE matches SET status=? WHERE id=?", (data.status, match_id))
+    conn.execute("UPDATE matches SET status=%s WHERE id=%s", (data.status, match_id))
     conn.commit()
     conn.close()
     return {"ok": True}
@@ -184,17 +184,17 @@ def set_status(match_id: int, data: MatchStatusUpdate):
 @app.post("/api/predictions")
 def save_prediction(data: PredictionCreate):
     conn = get_conn()
-    match = conn.execute("SELECT status FROM matches WHERE id=?", (data.match_id,)).fetchone()
+    match = conn.execute("SELECT status FROM matches WHERE id=%s", (data.match_id,)).fetchone()
     if not match or match["status"] != "scheduled":
         conn.close()
         raise HTTPException(400, "Jogo ja comecou ou nao existe")
     try:
         conn.execute(
             """INSERT INTO predictions (user_id, match_id, score_a, score_b)
-               VALUES (?,?,?,?)
-               ON CONFLICT(user_id, match_id)
-               DO UPDATE SET score_a=?, score_b=?, created_at=datetime('now')""",
-            (data.user_id, data.match_id, data.score_a, data.score_b, data.score_a, data.score_b),
+               VALUES (%s,%s,%s,%s)
+               ON CONFLICT (user_id, match_id)
+               DO UPDATE SET score_a=EXCLUDED.score_a, score_b=EXCLUDED.score_b, created_at=now()""",
+            (data.user_id, data.match_id, data.score_a, data.score_b),
         )
         conn.commit()
         return {"ok": True}
@@ -209,7 +209,7 @@ def user_predictions(user_id: int):
         """SELECT p.*, m.team_a, m.team_b, m.flag_a, m.flag_b, m.match_date,
                   m.phase, m.group_name, m.score_a as real_score_a, m.score_b as real_score_b, m.status
            FROM predictions p JOIN matches m ON p.match_id=m.id
-           WHERE p.user_id=? ORDER BY m.match_date""",
+           WHERE p.user_id=%s ORDER BY m.match_date""",
         (user_id,),
     ).fetchall()
     conn.close()
@@ -222,7 +222,7 @@ def match_predictions(match_id: int):
     rows = conn.execute(
         """SELECT p.*, u.name as user_name
            FROM predictions p JOIN users u ON p.user_id=u.id
-           WHERE p.match_id=? ORDER BY u.name""",
+           WHERE p.match_id=%s ORDER BY u.name""",
         (match_id,),
     ).fetchall()
     conn.close()
@@ -305,7 +305,7 @@ def ranking():
         pts = exact = winner = games = 0
         for m in finished:
             pred = conn.execute(
-                "SELECT score_a, score_b FROM predictions WHERE user_id=? AND match_id=?",
+                "SELECT score_a, score_b FROM predictions WHERE user_id=%s AND match_id=%s",
                 (u["id"], m["id"]),
             ).fetchone()
             if pred:

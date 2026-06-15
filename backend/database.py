@@ -1,30 +1,40 @@
-import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "bolao.db")
+import psycopg2
+import psycopg2.extras
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DATABASE_URL = os.environ["DATABASE_URL"]
+
+
+class DictConnection(psycopg2.extensions.connection):
+    """Connection that returns dict-like rows and supports conn.execute(...)."""
+
+    def execute(self, sql, params=None):
+        cur = self.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql, params)
+        return cur
 
 
 def get_conn():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+    return psycopg2.connect(DATABASE_URL, connection_factory=DictConnection)
 
 
 def init_db():
     conn = get_conn()
-    conn.executescript("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             name TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             phone TEXT NOT NULL,
             is_admin INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
         CREATE TABLE IF NOT EXISTS matches (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             team_a TEXT NOT NULL,
             team_b TEXT NOT NULL,
             flag_a TEXT NOT NULL DEFAULT '',
@@ -38,14 +48,12 @@ def init_db():
             status TEXT NOT NULL DEFAULT 'scheduled'
         );
         CREATE TABLE IF NOT EXISTS predictions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            match_id INTEGER NOT NULL,
+            id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            user_id BIGINT NOT NULL REFERENCES users(id),
+            match_id BIGINT NOT NULL REFERENCES matches(id),
             score_a INTEGER NOT NULL,
             score_b INTEGER NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (match_id) REFERENCES matches(id),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
             UNIQUE(user_id, match_id)
         );
     """)
