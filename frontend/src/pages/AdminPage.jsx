@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import toast from 'react-hot-toast';
+import { formatTime, getLocalDateBR } from '../dateUtils';
 
 export default function AdminPage() {
   const [matches, setMatches] = useState([]);
@@ -147,9 +148,9 @@ export default function AdminPage() {
             <div className="match-card" key={m.id}>
               <div className="match-meta">
                 <span className={`badge ${m.status === 'in_progress' ? 'badge-live' : 'badge-scheduled'}`}>
-                  {m.status === 'in_progress' ? 'Em andamento' : m.match_date.slice(11, 16)}
+                  {m.status === 'in_progress' ? 'Em andamento' : formatTime(m.match_date)}
                 </span>
-                <span className="match-venue">{m.match_date.slice(0, 10)} · {m.group_name}</span>
+                <span className="match-venue">{getLocalDateBR(m.match_date)} · {m.group_name}</span>
               </div>
               <div className="match-teams">
                 <span className="match-team">
@@ -356,7 +357,7 @@ export default function AdminPage() {
               <div className="match-card" key={m.id}>
                 <div className="match-meta">
                   <span className="badge badge-finished">Finalizado</span>
-                  <span className="match-venue">{m.match_date.slice(0, 10)} · {m.group_name}</span>
+                  <span className="match-venue">{getLocalDateBR(m.match_date)} · {m.group_name}</span>
                 </div>
                 <div className="match-teams" style={{ marginBottom: '.5rem' }}>
                   <span className="match-team">{m.flag_a && <span className="match-flag">{m.flag_a}</span>} {m.team_a}</span>

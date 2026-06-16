@@ -2,17 +2,13 @@ import { useEffect, useState } from 'react';
 import { useUser } from '../App';
 import { api } from '../api';
 import toast from 'react-hot-toast';
+import { formatDate, formatTime, getLocalDateBR } from '../dateUtils';
 
 function calcPoints(pa, pb, ra, rb) {
   if (pa === ra && pb === rb) return 3;
   const p = pa > pb ? 1 : pa < pb ? -1 : 0;
   const r = ra > rb ? 1 : ra < rb ? -1 : 0;
   return p === r ? 1 : 0;
-}
-
-function formatDate(dateStr) {
-  const d = new Date(dateStr.replace(' ', 'T'));
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'long' });
 }
 
 export default function PredictionsPage() {
@@ -67,7 +63,7 @@ export default function PredictionsPage() {
   const groupByDate = (list) => {
     const groups = {};
     list.forEach(m => {
-      const date = m.match_date.slice(0, 10);
+      const date = getLocalDateBR(m.match_date);
       (groups[date] ||= []).push(m);
     });
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
@@ -119,7 +115,7 @@ export default function PredictionsPage() {
                   return (
                     <div className="match-card" key={m.id}>
                       <div className="match-meta">
-                        <span className="badge badge-scheduled">{m.match_date.slice(11, 16)} · {m.phase}</span>
+                        <span className="badge badge-scheduled">{formatTime(m.match_date)} · {m.phase}</span>
                         <span className="match-venue">{m.venue}</span>
                       </div>
                       <div className="match-teams">
@@ -174,7 +170,7 @@ export default function PredictionsPage() {
                     <span className={`badge ${m.status === 'finished' ? 'badge-finished' : 'badge-live'}`}>
                       {m.status === 'finished' ? 'Finalizado' : 'Ao vivo'}
                     </span>
-                    <span className="match-venue">{m.match_date.slice(0, 10)}</span>
+                    <span className="match-venue">{getLocalDateBR(m.match_date)}</span>
                   </div>
                   <div className="match-teams">
                     <span className="match-team">

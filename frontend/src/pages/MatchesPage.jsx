@@ -1,16 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { formatDate, formatTime, getLocalDateBR } from '../dateUtils';
 
 function calcPoints(pa, pb, ra, rb) {
   if (pa === ra && pb === rb) return 3;
   const p = pa > pb ? 1 : pa < pb ? -1 : 0;
   const r = ra > rb ? 1 : ra < rb ? -1 : 0;
   return p === r ? 1 : 0;
-}
-
-function formatDate(dateStr) {
-  const d = new Date(dateStr.replace(' ', 'T'));
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'long' });
 }
 
 export default function MatchesPage() {
@@ -44,7 +40,7 @@ export default function MatchesPage() {
   }
 
   const byDate = {};
-  filtered.forEach(m => { (byDate[m.match_date.slice(0, 10)] ||= []).push(m); });
+  filtered.forEach(m => { (byDate[getLocalDateBR(m.match_date)] ||= []).push(m); });
 
   return (
     <>
@@ -92,7 +88,7 @@ export default function MatchesPage() {
               <div className="match-card" key={m.id}>
                 <div className="match-meta">
                   <span className={`badge ${isFinished ? 'badge-finished' : isLive ? 'badge-live' : 'badge-scheduled'}`}>
-                    {isFinished ? `${m.score_a} x ${m.score_b} — Finalizado` : isLive ? 'AO VIVO' : m.match_date.slice(11, 16)}
+                    {isFinished ? `${m.score_a} x ${m.score_b} — Finalizado` : isLive ? 'AO VIVO' : formatTime(m.match_date)}
                   </span>
                   <span className="match-venue">{m.phase} · {m.group_name}</span>
                 </div>
