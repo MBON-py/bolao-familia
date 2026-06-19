@@ -8,7 +8,7 @@ function calcPoints(pa, pb, ra, rb) {
   if (pa === ra && pb === rb) return 3;
   const p = pa > pb ? 1 : pa < pb ? -1 : 0;
   const r = ra > rb ? 1 : ra < rb ? -1 : 0;
-  return p === r ? 1 : 0;
+  return p === r && r !== 0 ? 1 : 0;
 }
 
 export default function PredictionsPage() {
